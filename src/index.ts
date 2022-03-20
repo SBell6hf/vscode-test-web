@@ -121,6 +121,11 @@ export interface Options {
 	vsCodeDevPath?: string;
 
 	/**
+	 * Absolute path pointing to VS Code web build to use.
+	 */
+	vsCodeWebBuildPath?: string;
+
+	/**
 	 * Print out more information while the server is running, e.g. the console output in the browser
 	 */
 	verbose?: boolean;
@@ -199,6 +204,15 @@ async function getBuild(options: Options): Promise<Static | Sources> {
 			location: options.vsCodeDevPath
 		};
 	}
+	if (options.vsCodeWebBuildPath) {
+		return {
+			type: 'static',
+			location: options.vsCodeWebBuildPath,
+			quality: (options.quality || options.version === 'stable') ? 'stable' : 'insider',
+			version: ""
+		};
+	}
+	// { type: 'static', location: downloadedPath, quality, version: info.version }
 	const quality = options.quality || options.version;
 	return await downloadAndUnzipVSCode(quality === 'stable' ? 'stable' : 'insider');
 }
@@ -476,6 +490,7 @@ interface CommandLineOptions {
 	extensionTestsPath?: string;
 	quality?: string;
 	sourcesPath?: string;
+	codeWebPath?: string;
 	'open-devtools'?: boolean;
 	headless?: boolean;
 	hideServerLog?: boolean;
@@ -497,6 +512,7 @@ function showHelp() {
 	console.log(`  --extensionTestsPath path: A path to a test module to run. [Optional]`);
 	console.log(`  --quality 'insiders' | 'stable' [Optional, default 'insiders', ignored when running from sources]`);
 	console.log(`  --sourcesPath path: If provided, running from VS Code sources at the given location. [Optional]`);
+	console.log(`  --codeWebPath path: If provided, running from VS Code web build at the given location. [Optional]`);
 	console.log(`  --open-devtools: If set, opens the dev tools. [Optional]`);
 	console.log(`  --headless: Whether to hide the browser. Defaults to true when an extensionTestsPath is provided, otherwise false. [Optional]`);
 	console.log(`  --permission: Permission granted in the opened browser: e.g. 'clipboard-read', 'clipboard-write'. [Optional, Multiple]`);
@@ -517,7 +533,7 @@ async function cliMain(): Promise<void> {
 	console.log(`${manifest.name}: ${manifest.version}`);
 
 	const options: minimist.Opts = {
-		string: ['extensionDevelopmentPath', 'extensionTestsPath', 'browser', 'browserType', 'quality', 'version', 'waitForDebugger', 'folder-uri', 'permission', 'extensionPath', 'extensionId', 'sourcesPath', 'host', 'port'],
+		string: ['extensionDevelopmentPath', 'extensionTestsPath', 'browser', 'browserType', 'quality', 'version', 'waitForDebugger', 'folder-uri', 'permission', 'extensionPath', 'extensionId', 'sourcesPath', 'codeWebPath', 'host', 'port'],
 		boolean: ['open-devtools', 'headless', 'hideServerLog', 'printServerLog', 'help', 'verbose'],
 		unknown: arg => {
 			if (arg.startsWith('-')) {
@@ -540,7 +556,8 @@ async function cliMain(): Promise<void> {
 	const extensionPaths = await valdiateExtensionPaths(args.extensionPath);
 	const extensionIds = await valdiateExtensionIds(args.extensionId);
 	const vsCodeDevPath = await validatePathOrUndefined(args, 'sourcesPath');
-	const quality = validateQuality(args.quality, args.version, vsCodeDevPath);
+	const vsCodeWebBuildPath = await validatePathOrUndefined(args, 'codeWebPath');
+	const quality = validateQuality(args.quality, args.version, vsCodeDevPath); // TODO
 	const devTools = validateBooleanOrUndefined(args, 'open-devtools');
 	const headless = validateBooleanOrUndefined(args, 'headless');
 	const permissions = valdiatePermissions(args.permission);
@@ -582,6 +599,7 @@ async function cliMain(): Promise<void> {
 			extensionPaths,
 			extensionIds,
 			vsCodeDevPath,
+			vsCodeWebBuildPath,
 			verbose,
 			host,
 			port
@@ -604,6 +622,7 @@ async function cliMain(): Promise<void> {
 			extensionPaths,
 			extensionIds,
 			vsCodeDevPath,
+			vsCodeWebBuildPath,
 			verbose,
 			host,
 			port
